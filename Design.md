@@ -117,7 +117,15 @@ Once all data (projects, facilities, users) is created:
 
 ---
 
-### **3. Perform Mapping or Detachment**
+### **3. Determine Rows to Detach**
+
+To determine which rows need detachment:
+- Compare the newly created data’s boundary codes with the old data’s boundary codes.
+- If the new data does not contain a boundary that existed in the old data, the row should be marked for **detachment**.
+
+---
+
+### **4. Perform Mapping or Detachment**
 
 #### **a. For `to_be_mapped` Rows**
 - Process rows in batches (e.g., 100 at a time).
@@ -137,7 +145,7 @@ Once all data (projects, facilities, users) is created:
 
 ---
 
-### **4. Final Check**
+### **5. Final Check**
 - After processing all mapping and detachment batches:
   - Ensure no rows remain with `status = to_be_mapped` or `to_be_detached`.
   - If any rows remain, wait briefly and retry if needed.
