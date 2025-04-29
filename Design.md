@@ -1,4 +1,4 @@
-### ✅ Final Kafka-Based Data Creation Flow (Step-by-Step, Word-by-Word)
+## ✅ Final Kafka-Based Data Creation Flow (Step-by-Step, Word-by-Word)
 
 ---
 
@@ -67,5 +67,92 @@ If all rows are `success`, mark it as `completed`.
 You can retry later.  
 Failed rows will be picked up again as `pending`.  
 No duplicates will be created because of the uniqueIdentifier check.
+
+---
+
+
+## ✅ Boundary Mapping Flow (Updated Word-by-Word)
+
+---
+
+### **1. During Data Creation (Initial Stage)**
+
+As part of the creation process (before actual mapping happens), for each entity type:
+
+#### **a. During Campaign Creation**
+- For each PVar ID in the sheet:
+  - Create a mapping entry between `campaignId` and `boundaryCode`
+  - Status = `to_be_mapped`
+  - `mappingId` = null
+  - `type = "resource"`
+
+---
+
+#### **b. During Facility Creation**
+- For each row:
+  - Take `facilityName` as `uniqueIdentifier`
+  - Map `facilityName` with `boundaryCode` from the row
+  - Status = `to_be_mapped`
+  - `mappingId` = null
+  - `type = "facility"`
+
+---
+
+#### **c. During User Creation**
+- For each user row:
+  - Take `mobileNumber` as `uniqueIdentifier`
+  - Map `mobileNumber` with `boundaryCode`
+  - Status = `to_be_mapped`
+  - `mappingId` = null
+  - `type = "user"`
+
+---
+
+### **2. After Data Creation Completes**
+
+After all data (campaigns, facilities, users) are created:
+
+- Use the same `referenceId` to collect rows from the mapping table
+- Separate them into two lists:
+  - Rows where boundary should be **added** → status = `to_be_mapped`
+  - Rows where boundary should be **removed** → status = `to_be_detached`
+
+---
+
+### **3. Perform Mapping or Detachment**
+
+#### **a. For `to_be_mapped` Rows**
+- Process in batches (e.g., 100 at a time)
+- Call the appropriate boundary mapping API
+- On success:
+  - Update `status = mapped`
+  - Set `mappingId` returned by the mapping API
+
+---
+
+#### **b. For `to_be_detached` Rows**
+- Process in batches
+- Call boundary **detach** API
+- On success:
+  - Update `status = detached`
+  - Leave `mappingId` as null or remove it
+
+---
+
+### **4. Final Check**
+- After all mapping/detachment batches are processed:
+  - Ensure no rows are left with `status = to_be_mapped` or `to_be_detached`
+  - If any remain, wait briefly and retry if needed
+
+---
+
+### ✅ Mapping Table Summary (Structure)
+
+- `uniqueIdentifier` → mobileNumber, facilityName, or PVar ID  
+- `boundaryCode` (boundary code associated with the boundary)  
+- `referenceId` (e.g., campaignId)  
+- `status`: `to_be_mapped`, `mapped`, `to_be_detached`, `detached`  
+- `mappingId`: null initially, filled after mapping API responds  
+- `type`: `user`, `facility`, `resource`
 
 ---
