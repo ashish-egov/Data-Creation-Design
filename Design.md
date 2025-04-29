@@ -1,158 +1,154 @@
-## ✅ Final Kafka-Based Data Creation Flow (Step-by-Step, Word-by-Word)
+## ✅ Kafka-Based Data Creation Flow (Standardized)
 
 ---
 
-#### **1. Upload Sheet**
-You upload a sheet with data rows.  
-You also give a `referenceId` (like `cmp-123`) and a `processName` (like `facilityCreation`).
+### **1. Upload Data Sheet**
+Upload a data sheet containing rows of information.  
+Provide a `referenceId` (e.g., `cmp-123`) and a `processName` (e.g., `facilityCreation`).
 
 ---
 
-#### **2. Identify Unique Rows**
+### **2. Identify Unique Entries**
 For each row in the sheet:  
-Extract a unique value (like mobile number) as `uniqueIdentifier`.  
-Check if this identifier with the same `referenceId` already exists in the system.
+Extract a unique identifier (e.g., mobile number) as `uniqueIdentifier`.  
+Check if this identifier, along with the same `referenceId`, already exists in the system.
 
 ---
 
-#### **3. Insert New Rows**
-If it does not exist:  
-Save the row in a tracking table with:
-- status = `pending`
-- type = `processName` (like facilityCreation)
-- referenceId = your input (like cmp-123)
-- rowData = original sheet row in JSON
+### **3. Insert New Records**
+If the record does not exist:  
+Insert the row into a tracking table with the following properties:
+- `status = pending`
+- `type = processName` (e.g., `facilityCreation`)
+- `referenceId = input referenceId` (e.g., `cmp-123`)
+- `rowData = original sheet row in JSON format`
 
 ---
 
-#### **4. Retry Old Failed Rows**
-Check for rows with the same `referenceId` where status = `failed`.  
+### **4. Retry Failed Entries**
+Check for rows with the same `referenceId` where the `status = failed`.  
 Change their status to `pending` so they can be retried.
 
 ---
 
-#### **5. Send Pending Rows to Kafka**
-Take 100 rows at a time with status = `pending`.  
+### **5. Publish Pending Rows to Kafka**
+Select 100 rows at a time with `status = pending`.  
 For each batch:
 - Send all 100 rows to Kafka.
-- Along with each row, send:
-  - referenceId
-  - processName
-  - currentBatchNumber (like 2)
-  - totalBatchNumber (like 10)
+- Include the following metadata with each row:
+  - `referenceId`
+  - `processName`
+  - `currentBatchNumber` (e.g., 2)
+  - `totalBatchNumber` (e.g., 10)
 
 ---
 
-#### **6. Kafka Consumer Processing**
-Kafka consumer receives each row.  
-Based on `processName`, it creates the required data (like a facility).  
-If creation is successful, update the status to `success`.
+### **6. Kafka Consumer Processing**
+Kafka consumer processes each row.  
+Based on the `processName`, the required data (e.g., facility) is created.  
+If the creation is successful, update the `status` to `success`.
 
 ---
 
-#### **7. Wait and Validate**
-After all batches are sent, wait for a short time (like 1 minute).  
-This is to allow delayed Kafka processing to finish.
+### **7. Wait and Validate**
+After all batches are sent, wait for a short period (e.g., 1 minute).  
+This provides time for delayed Kafka processing to complete.
 
 ---
 
-#### **8. Final Check**
-Check if any row with that `referenceId` still has status = `pending` or `failed`.  
-If yes, mark the overall process as `failed`.  
-If all rows are `success`, mark it as `completed`.
+### **8. Final Validation**
+Check for any rows with the given `referenceId` that still have `status = pending` or `failed`.  
+If such rows exist, mark the overall process as `failed`.  
+If all rows are marked as `success`, mark the process as `completed`.
 
 ---
 
-#### **9. Retry if Needed**
-You can retry later.  
-Failed rows will be picked up again as `pending`.  
-No duplicates will be created because of the uniqueIdentifier check.
+### **9. Retry Mechanism**
+You can retry the process later.  
+Failed rows will be retried and marked as `pending`.  
+No duplicates will be created due to the `uniqueIdentifier` check.
 
 ---
 
-
-## ✅ Boundary Mapping Flow (Updated Word-by-Word)
+## ✅ Boundary Mapping Process (Standardized)
 
 ---
 
-### **1. During Data Creation (Initial Stage)**
+### **1. During Initial Data Creation**
 
-As part of the creation process (before actual mapping happens), for each entity type:
+For each entity type in the creation process (before mapping occurs):
 
-#### **a. During Campaign Creation**
-- For each PVar ID in the sheet:
-  - Create a mapping entry between `campaignId` and `boundaryCode`
-  - Status = `to_be_mapped`
-  - `mappingId` = null
+#### **a. During Project (Target) Creation**
+- For each `PVar ID` in the sheet:
+  - Create a mapping entry between `pvarId` and `boundaryCode`
+  - `status = to_be_mapped`
+  - `mappingId = null`
   - `type = "resource"`
 
 ---
 
 #### **b. During Facility Creation**
 - For each row:
-  - Take `facilityName` as `uniqueIdentifier`
+  - Use `facilityName` as the `uniqueIdentifier`
   - Map `facilityName` with `boundaryCode` from the row
-  - Status = `to_be_mapped`
-  - `mappingId` = null
+  - `status = to_be_mapped`
+  - `mappingId = null`
   - `type = "facility"`
 
 ---
 
 #### **c. During User Creation**
 - For each user row:
-  - Take `mobileNumber` as `uniqueIdentifier`
+  - Use `mobileNumber` as the `uniqueIdentifier`
   - Map `mobileNumber` with `boundaryCode`
-  - Status = `to_be_mapped`
-  - `mappingId` = null
+  - `status = to_be_mapped`
+  - `mappingId = null`
   - `type = "user"`
 
 ---
 
-### **2. After Data Creation Completes**
+### **2. After Data Creation Completion**
 
-After all data (campaigns, facilities, users) are created:
-
-- Use the same `referenceId` to collect rows from the mapping table
-- Separate them into two lists:
-  - Rows where boundary should be **added** → status = `to_be_mapped`
-  - Rows where boundary should be **removed** → status = `to_be_detached`
+Once all data (projects, facilities, users) is created:
+- Use the same `referenceId` to retrieve rows from the mapping table.
+- Separate the rows into two lists:
+  - Rows requiring **mapping** → `status = to_be_mapped`
+  - Rows requiring **detachment** → `status = to_be_detached`
 
 ---
 
 ### **3. Perform Mapping or Detachment**
 
 #### **a. For `to_be_mapped` Rows**
-- Process in batches (e.g., 100 at a time)
-- Call the appropriate boundary mapping API
-- On success:
+- Process rows in batches (e.g., 100 at a time).
+- Call the appropriate boundary mapping API.
+- On successful mapping:
   - Update `status = mapped`
-  - Set `mappingId` returned by the mapping API
+  - Set `mappingId` to the value returned by the mapping API.
 
 ---
 
 #### **b. For `to_be_detached` Rows**
-- Process in batches
-- Call boundary **detach** API
-- On success:
+- Process rows in batches.
+- Call the boundary detachment API.
+- On successful detachment:
   - Update `status = detached`
-  - Leave `mappingId` as null or remove it
+  - Set `mappingId` to `null` or remove it.
 
 ---
 
 ### **4. Final Check**
-- After all mapping/detachment batches are processed:
-  - Ensure no rows are left with `status = to_be_mapped` or `to_be_detached`
-  - If any remain, wait briefly and retry if needed
+- After processing all mapping and detachment batches:
+  - Ensure no rows remain with `status = to_be_mapped` or `to_be_detached`.
+  - If any rows remain, wait briefly and retry if needed.
 
 ---
 
-### ✅ Mapping Table Summary (Structure)
+### ✅ Mapping Table Structure Summary
 
-- `uniqueIdentifier` → mobileNumber, facilityName, or PVar ID  
-- `boundaryCode` (boundary code associated with the boundary)  
-- `referenceId` (e.g., campaignId)  
+- `uniqueIdentifier` → Mobile number, facility name, or PVar ID  
+- `boundaryCode` → Boundary code associated with the boundary  
+- `referenceId` → e.g., campaign ID  
 - `status`: `to_be_mapped`, `mapped`, `to_be_detached`, `detached`  
-- `mappingId`: null initially, filled after mapping API responds  
+- `mappingId`: Initially `null`, filled after the mapping API responds  
 - `type`: `user`, `facility`, `resource`
-
----
