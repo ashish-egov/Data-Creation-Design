@@ -4,7 +4,7 @@
 
 ### **1. Upload Data Sheet**
 Upload a data sheet containing rows of information.  
-Provide a `referenceId` (e.g., `cmp-123`) and a `processName` (e.g., `facilityCreation`).
+Provide a `referenceId` in this case campainNumber (e.g., `cmp-123`) and a `processName` (e.g., `facilityCreation`).
 
 ---
 
